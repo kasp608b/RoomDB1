@@ -2,6 +2,7 @@ package easv.oe.roomdb1
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -13,6 +14,10 @@ import easv.oe.roomdb1.data.PersonRepositoryInDB
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
+
+    val TAG = "xyz"
+
+    var filterActive: Boolean = false;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,35 +37,34 @@ class MainActivity : AppCompatActivity() {
         mRep.insert(BEPerson(0,"Rup", 3))
     }
 
-    var cache: List<BEPerson>? = null;
-
     private fun setupDataObserver() {
         val mRep = PersonRepositoryInDB.get()
-        val nameObserver = Observer<List<BEPerson>>{ persons ->
-            cache = persons;
-            val asStrings = persons.map { p -> "${p.id}, ${p.name}"}
-             val adapter: ListAdapter = ArrayAdapter(
-                     this,
-                              android.R.layout.simple_list_item_1,
-                              asStrings.toTypedArray()
-                                                    )
-             lvNames.adapter = adapter
+        val updateGUIObserver = Observer<List<BEPerson>>{ persons ->
+            setAdapterforListView(persons)
+            Log.d(TAG, "UpdateGUI Observer notified")
         }
-        mRep.getAll().observe(this, nameObserver)
+        mRep.getAllLiveData().value
+        mRep.getAllLiveData().observe(this, updateGUIObserver)
 
         lvNames.onItemClickListener = AdapterView.OnItemClickListener {_,_,pos,_ -> onClickPerson(pos)}
     }
 
+    private fun setAdapterforListView(persons: List<BEPerson>) {
+        val asStrings = persons.map { p -> "${p.id}, ${p.name}"}
+        val adapter: ListAdapter = ArrayAdapter(
+                this,
+                android.R.layout.simple_list_item_1,
+                asStrings.toTypedArray()
+        )
+        lvNames.adapter = adapter
+    }
     private fun onClickPerson(pos: Int) {
-        val id = cache!![pos].id
-        //Toast.makeText(this, "You have clicked $name at position $pos", Toast.LENGTH_LONG).show()
-        val personObserver = Observer<BEPerson> { person ->
-            Toast.makeText(this, "You have clicked ${person.name} ", Toast.LENGTH_LONG).show()
-
-        }
         val mRep = PersonRepositoryInDB.get()
-        mRep.getById(id).observe(this , personObserver)
-
+        val person = mRep.getByPos(pos)
+        if (person != null)
+        {
+            Toast.makeText(this, "You have clicked ${person} ", Toast.LENGTH_LONG).show()
+        }
     }
 
     fun onClickInsert(view: View) {
@@ -71,5 +75,22 @@ class MainActivity : AppCompatActivity() {
     fun onClickClear(view: View) {
         val mRep = PersonRepositoryInDB.get()
         mRep.clear()
+    }
+
+    fun onClickFilter(view: View){
+        if (! filterActive ) {
+            val mRep = PersonRepositoryInDB.get()
+            val persons = mRep.getByFilterName(etName.text.toString())
+            setAdapterforListView(persons)
+            filterActive = true
+            btnFilter.text = resources.getString(R.string.remove_filter)
+        } else
+        {
+            val mRep = PersonRepositoryInDB.get()
+            val persons = mRep.getByFilterName("")
+            setAdapterforListView(persons)
+            filterActive = false
+            btnFilter.text = resources.getString(R.string.use_filter)
+        }
     }
 }

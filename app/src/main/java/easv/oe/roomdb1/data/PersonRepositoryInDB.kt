@@ -1,24 +1,56 @@
 package easv.oe.roomdb1.data
 
 import android.content.Context
+import android.util.Log
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.room.Room
 import java.lang.IllegalStateException
 import java.util.concurrent.Executors
 
-class PersonRepositoryInDB private constructor(private val context: Context) {
+class PersonRepositoryInDB  {
 
-    private val database: PersonDatabase = Room.databaseBuilder(context.applicationContext,
-                                                                PersonDatabase::class.java,
-                                                        "person-database").build()
+    val TAG = "xyz"
 
-    private val personDao = database.personDao()
+    private val database: PersonDatabase
 
-    fun getAll(): LiveData<List<BEPerson>> = personDao.getAll()
+    private val personDao : PersonDao
 
-    fun getAllNames(): LiveData<List<String>> = personDao.getAllNames()
+    private lateinit var cache: List<BEPerson>
 
-    fun getById(id: Int) = personDao.getById(id)
+    private constructor(context: Context) {
+
+        database = Room.databaseBuilder(context.applicationContext,
+                PersonDatabase::class.java,
+                "person-database").build()
+
+        personDao = database.personDao()
+
+        val updateCacheObserver = Observer<List<BEPerson>>{ persons ->
+            cache = persons;
+            Log.d(TAG, "Update Cache observer notified")
+        }
+        getAllLiveData().observe(context as LifecycleOwner, updateCacheObserver)
+    }
+
+    fun getAllLiveData(): LiveData<List<BEPerson>> = personDao.getAll()
+    
+
+    fun getById(id: Int): BEPerson? {
+        cache.forEach { p -> if (p.id == id) return p; }
+        return null;
+    }
+
+    fun getByPos(pos: Int): BEPerson? {
+        if (pos < cache.size)
+            return cache[pos]
+        return null
+    }
+
+    fun getByFilterName(filter: String): List<BEPerson> {
+        return cache.filter{ p -> p.name.contains(filter, true)}
+    }
 
     private val executor = Executors.newSingleThreadExecutor()
 

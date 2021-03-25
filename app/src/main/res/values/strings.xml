@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">RoomDB1</string>
+    <string name="use_filter">Use Filter</string>
+    <string name="remove_filter">See All</string>
 </resources>
